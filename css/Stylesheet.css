@@ -440,7 +440,7 @@ header{
   background-color: rgba(25,25,46,1.0);
   height:20%;
   width:100%;
-  position: absolute;
+  position: relative;
   top:0px;
 }
 p{
@@ -478,4 +478,14 @@ div.bodyText h1{
     text-align:center;
     font-size:2.0em;
     margin-top:0.25%;
+}
+
+
+
+
+
+#section {
+  width: 70%;
+  margin: 0 auto;
+  margin-top: 10%;
 }
