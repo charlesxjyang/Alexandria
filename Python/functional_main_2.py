@@ -1,5 +1,5 @@
 ###---Master Function---###
-def master_function(queries,cite_flag=False,relev_flag=False,database='CrossRef'):
+def master_function(name,email,queries,cite_flag=False,relev_flag=False,database='CrossRef'):
     if database=='Crossref':
         query_results = title_query_crossref(queries,cite_flag=False,relev_flag=False)
         plot = date_visualization(queries,query_results,database='CrossRef')
@@ -9,6 +9,22 @@ def master_function(queries,cite_flag=False,relev_flag=False,database='CrossRef'
         plot = date_visualization(queries,query_results,database='Arxiv')
         return plot
 
+def timer(queries,database='Arxiv'):
+    import time
+    if database=='Arxiv':
+        start = time.clock()
+        query_results,num_query = title_query_arxiv(queries)
+        end = time.clock()
+        print(num_query)
+        print(end-start)
+        print((end-start)/sum(num_query))
+    elif database=='CrossRef':
+        start = time.clock()
+        query_results,num_query = title_query_crossref(queries)
+        end = time.clock()
+        print(num_query)
+        print(end-start)
+        print((end-start)/num_query)
 
 ###---Querying---###
 def date_extract_pub(date):
@@ -76,16 +92,91 @@ def tick_optimizer(start_year,end_year,optimal_num_ticks=15):
     #assume we weight cost_1 and cost_2 the same
     best_idx = np.argmin([sum(x) for x in zip(norm_cost_1,norm_cost_2)])
     return potential_intvls[best_idx]
-    
-###---Arxiv---###
-def title_query_arxiv(queries,cite_flag=False,relev_flag=False):
-    from time import sleep
+def requester(url):
+    #one issue is slow wifi results in taking more than 15 seconds to load page
     import requests
+    from time import sleep
+    try:
+        query = requests.get(url,timeout=30)
+    except ConnectionError as e:
+        #trying to handle connectionerrors
+        sleep(5)
+        print('HANDLING CONNECTION ERROR')
+        query = requests.get(url,timeout=30)
+        print('CONNECTION ERROR RESOLVED')
+    return query
+        
+###---Arxiv---###
+def arxiv_section_scraper(section="physics:hep-ex"):
+    '''Scrapes all publications for title,abstract,creation date, and arxiv_id for given section'''
+    from time import sleep
+    import pandas as pd
+    import numpy as np
+    #current_date = time.strftime("%d/%m/%Y")
+    date_sections = [['1991-01-01','2000-12-31'],['2001-01-01','2005-12-31'],
+                     ['2006-01-01','2010-12-31'],['2011-01-01','2013-12-31'],
+                     ['2014-01-01','2016-12-31'],['2017-01-01','2017-12-31']]
+    possible_sections = np.load('Arxiv_sections.npy')
+    assert section in list(possible_sections),'Invalid section name'
+    def param_scraper(query,param='created'):
+        start_sep = '<'+param+'>'
+        end_sep = '</'+param+'>'
+        vals = []
+        if param=='resumptionToken':
+            split = query.split(end_sep)
+            split = split[0].split('">')
+            return split[1]
+        split = query.split(start_sep)
+        for value in split:
+            if end_sep in value:
+                vals.append(value.split(end_sep)[0])
+        return vals
+    df = pd.DataFrame(columns=("title", "abstract", "created", "id", "doi"))
+    base_url = 'http://export.arxiv.org/oai2?verb=ListRecords&'
+    for date in date_sections:
+        url = base_url + 'from='+date[0]+'&until='+date[1]+'&metadataPrefix=arXiv&set='+section
+        print(url)
+        while True:
+            sleep(0.75)
+            query = requester(url).text
+            print(query)
+            if 'noRecordsMatch' in query:
+                break
+            elif 'Retry after 10 seconds' in query:
+                sleep(11)
+                continue
+            title = param_scraper(query,'title')
+            abstract = param_scraper(query,'abstract')
+            created = param_scraper(query,'created')
+            arxiv_id = param_scraper(query,'id')
+            contents = {'title': title,
+                        'abstract': abstract,
+                        'created': created,
+                        'arxiv_id': arxiv_id,
+                        }
+            df = df.append(contents, ignore_index=True)
+            next_token = param_scraper(query,'resumptionToken')
+            print(next_token)
+            if next_token==[]:
+                break
+            url = base_url+'resumptionToken='+next_token
+            print(url)
+    return df
+
+
+
+def title_query_arxiv(queries,section='all',cite_flag=False,relev_flag=False):
+    '''Returns all publication dates for given queries'''
+    #403 Access denied means we've spammed the arxiv api too much
+    from time import sleep
     from math import ceil
     import numpy as np
     import pandas as pd
     cite_flag,relev_flag=weight_database_checker('Arxiv',cite_flag,relev_flag)
     query_results = []
+    total_results = []
+    possible_sections = np.load('Arxiv_sections.npy')
+    assert section in list(possible_sections)+['all'],'not a valid Arxiv Section'
     def date_arxiv_extract(query):
         start_sep = '<published>'
         end_sep = '</published>'
@@ -113,17 +204,22 @@ def title_query_arxiv(queries,cite_flag=False,relev_flag=False):
         for word in title.split(' '):
             base_url+='all:'+word+'&'
         url=base_url+'start='+str(start)+'&max_results='+str(max_results)
-        query = requests.get(url).text
+        if section!='all':
+            url+='&cat='+section
+        query = requester(url).text
         total_requests = regex_totalresults(query)
+        total_results.append(total_requests)
         iterations = ceil(total_requests//max_results)
         for _ in range(iterations):
             sleep(0.75)
-            query = requests.get(url).text
+            query = requester(url).text
             dates,weights = date_arxiv_extract(query)
             total_dates.extend(dates)
             total_weights.extend(weights)
             start+=max_results
             url=base_url+'start='+str(start)+'&max_results='+str(max_results)
+            if section!='all':
+                url+='cat='+section
         date_and_weight=np.vstack([total_dates,total_weights])
         sort_by_date = date_and_weight[:,date_and_weight[0,:].argsort(axis=0,kind='mergesort')]
         sort_dates = sort_by_date[0,:]
@@ -131,13 +227,12 @@ def title_query_arxiv(queries,cite_flag=False,relev_flag=False):
         df = pd.DataFrame(data=sort_weights,index=sort_dates,columns=['weights'])
         df.index.name='dates'
         query_results.append(df)
-    return query_results
+    return query_results,total_results
 
 ###---Crossref---###
 def title_query_crossref(queries,cite_flag=False,relev_flag=False):
     import numpy as np
     from time import sleep
-    import requests
     import json
     from urllib.parse import quote_plus
     cite_flag,relev_flag=weight_database_checker('CrossRef',cite_flag,relev_flag)
@@ -207,7 +302,7 @@ def title_query_crossref(queries,cite_flag=False,relev_flag=False):
     for title in queries:
     #crossref uses deep page cursoring where each cursor points to the next page of results
         header = 'https://api.crossref.org/works?query.title='+title+'&rows=1000&cursor=*'
-        current_json = json.loads(requests.get(header).text)
+        current_json = json.loads(requester(header).text)
         total_requests = current_json['message']['total-results'] #probably can have some way to back calculate length of time needed to query to tell user how long to wait
         total_dates=[]
         total_weights=[]
@@ -219,11 +314,11 @@ def title_query_crossref(queries,cite_flag=False,relev_flag=False):
             next_header = 'https://api.crossref.org/works?query.title='+title+'&rows=1000&mailto=charlesxjyang@berkeley.edu&cursor='+quote_plus(current_json['message']['next-cursor'])
             print(next_header)
             sleep(0.75)
-            current_json = json.loads(requests.get(next_header).text)
+            current_json = json.loads(requester(next_header).text)
         date_and_weight=np.vstack([total_dates,total_weights])
         df = sort_date_weight(date_and_weight)
         query_results.append(df)
-    return query_results
+    return query_results,total_requests
 ###---PLOS---###
 def title_query_plos(queries,cite_flag=False,relev_flag=False):
     from time import sleep
@@ -247,14 +342,14 @@ def title_query_plos(queries,cite_flag=False,relev_flag=False):
         url = 'http://api.plos.org/search?q=title:'+title+'&start=0&rows=100&wt=json&fl=publication_date&api_key='+api
         total_dates = []
         total_weights = []
-        plos_query = json.loads(requests.get(url).text)
+        plos_query = json.loads(requests.get(url,timeout=10).text)
         start=0
         rows=100
         total_results = plos_query['response']['numFound']
         iter = ceil(total_results/rows)
         for _ in range(iter):
             sleep(10)
-            plos_query = json.loads(requests.get(url).text)
+            plos_query = json.loads(requests.get(url,timeout=10).text)
             dates,weights=date_extract_plos(plos_query)
             total_dates.extend(dates)
             total_weights.extend(weights)
@@ -299,7 +394,7 @@ def date_visualization(queries,query_results,month_flag=False,year_flag=True,dat
         else:
             title_format+='{}, and {}'.format(', '.join(query_format[:-1]), query_format[-1])
         if weight_print:
-            title_format+= ', ' + weight_print
+            title_format+= weight_print
             return title_format
         else:
             return title_format
@@ -309,7 +404,7 @@ def date_visualization(queries,query_results,month_flag=False,year_flag=True,dat
                 weight_print = 'weighted by relevance score and citation count from '+database
             else:
                 weight_print = 'weighted by relevance score from '+database
-        elif (cite_flag==True):
+        elif cite_flag!=True:
             weight_print = 'weighted by citation count from '+database
         else:
             weight_print = 'from '+database
@@ -336,6 +431,8 @@ def date_visualization(queries,query_results,month_flag=False,year_flag=True,dat
         all_counts.append(counts(dates))
     all_dates = pd.concat(all_counts,join='outer',axis=1)
     all_dates = all_dates.fillna(0)
+    all_dates.columns = queries
+    all_dates.index.name = 'Dates'
     assert all_dates.shape[1]==len(queries),'number of labels does not match number of cols'
     for col in range(all_dates.shape[1]):
         plt.plot_date(x=all_dates.index,y=all_dates.iloc[:,col],linestyle='solid',label='"'+queries[col]+'"')
@@ -355,6 +452,6 @@ def date_visualization(queries,query_results,month_flag=False,year_flag=True,dat
     plt.legend(loc='best',prop={'size': 18},labelspacing=1.0,borderpad=0.5)
     
     #fig.savefig('filename.png')
-    #all_counts.to_csv('filename')
+    all_dates.to_csv('filename.csv')
     
     return all_dates
