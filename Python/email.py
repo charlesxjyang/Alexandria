@@ -1,5 +1,5 @@
     
-def send_email(fromaddr,toaddr,name,graph,csv):    
+def send_email(fromaddr,toaddr,f_name,l_name,graph_filename,csv_filename):    
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
@@ -15,7 +15,7 @@ def send_email(fromaddr,toaddr,name,graph,csv):
     msg['Subject'] = "SUBJECT OF THE EMAIL"
      
     body = ""
-    firstline = "Hi "+name+','
+    firstline = "Hi "+f_name+','
     secondline = ("Thank you for using our app. "
                   "We have attached the data visualization you requested for the given queries and the csv for the underlying data."
                   "Please let us know if you have any issues or questions about where this data came from or how the visualization was made."
@@ -26,7 +26,7 @@ def send_email(fromaddr,toaddr,name,graph,csv):
     body+=firstline + '\n\n' + secondline + '\n\n' + closer + '\n\n' + signature
     msg.attach(MIMEText(body, 'plain'))
     #first attachment
-    filename=graph
+    filename=graph_filename
     attachment = open(filename,'rb')
     part = MIMEBase('application', 'octet-stream')
     part.set_payload((attachment).read())
@@ -34,7 +34,7 @@ def send_email(fromaddr,toaddr,name,graph,csv):
     part.add_header('Content-Disposition', "attachment; filename= %s" % filename)
     msg.attach(part)
     #second attachment
-    filename=csv
+    filename=csv_filename
     attachment = open(filename,'rb')
     part = MIMEBase('application', 'octet-stream')
     part.set_payload((attachment).read())
@@ -53,7 +53,7 @@ def send_email(fromaddr,toaddr,name,graph,csv):
 #        part.add_header('Content-Disposition', "attachment; filename= %s" % filename)
 #         
 #        msg.attach(part)
-    print('start query server')
+#    print('start query server')
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
     server.login(fromaddr, 'passwiord')

@@ -1,13 +1,14 @@
 ###---Master Function---###
-def master_function(name,email,queries,cite_flag=False,relev_flag=False,database='CrossRef'):
+def master_function(f_name,l_name,email,queries,database='CrossRef',graph_filename,csv_filename):
+    from email import *
+    queries = [phrase.lstrip() for phrase in queries.split(',')]
     if database=='Crossref':
         query_results = title_query_crossref(queries,cite_flag=False,relev_flag=False)
-        plot = date_visualization(queries,query_results,database='CrossRef')
-        return plot
     elif database=='Arxiv':
         query_results = title_query_arxiv(queries,cite_flag=False,relev_flag=False)
-        plot = date_visualization(queries,query_results,database='Arxiv')
-        return plot
+    date_visualization(queries,query_results,database=database,graph_filename=graph_filename,csv_filename=csv_filename)
+    send_email('fromaddr',email,f_name,l_name,graph_filename=graph_filename,csv_filename=csv_filename)
+    
 
 def timer(queries,database='Arxiv'):
     import time
@@ -362,7 +363,7 @@ def title_query_plos(queries,cite_flag=False,relev_flag=False):
 
 
 ###---Visualization---###
-def date_visualization(queries,query_results,month_flag=False,year_flag=True,database='CrossRef',weight_flag=False,cite_flag=False):
+def date_visualization(queries,query_results,month_flag=False,year_flag=True,database='CrossRef',weight_flag=False,cite_flag=False,graph_filename,csv_filename):
     import numpy as np
     def counts(dates):
         import pandas as pd
@@ -451,7 +452,5 @@ def date_visualization(queries,query_results,month_flag=False,year_flag=True,dat
     ax.xaxis.set_minor_locator(years)
     plt.legend(loc='best',prop={'size': 18},labelspacing=1.0,borderpad=0.5)
     
-    #fig.savefig('filename.png')
-    all_dates.to_csv('filename.csv')
-    
-    return all_dates
+    fig.savefig(graph_filename+'.png')
+    all_dates.to_csv(csv_filename+'.csv')
