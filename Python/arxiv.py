@@ -1,11 +1,13 @@
 from helper import *
 
 ###---Arxiv---###
+
 def arxiv_section_scraper(section="physics:hep-ex"):
     '''Scrapes all publications for title,abstract,creation date, and arxiv_id for given section'''
     from time import sleep
     import pandas as pd
     import numpy as np
+    import re
     #current_date = time.strftime("%d/%m/%Y")
     date_sections = [['1991-01-01','2000-12-31'],['2001-01-01','2005-12-31'],
                      ['2006-01-01','2010-12-31'],['2011-01-01','2013-12-31'],
@@ -61,8 +63,11 @@ def arxiv_section_scraper(section="physics:hep-ex"):
             query = requester(url).text
             if 'noRecordsMatch' in query:
                 break
-            elif 'Retry after 10 seconds' in query:
-                sleep(11)
+            elif 'Retry' in query:
+                #finds how long to sleep based on error message
+                sep = query.split('Retry')[1].split('seconds')[0]
+                sec= int(re.search(r'\d+', sep).group())
+                sleep(sec+1)
                 continue
             title = param_scraper(query,'title')
             abstract = param_scraper(query,'abstract')
@@ -82,6 +87,19 @@ def arxiv_section_scraper(section="physics:hep-ex"):
             print(url)
     return df
 
+def all_arxiv_section_scraper():
+    import numpy as np
+    import time
+    possible_sections = np.load('Arxiv_sections.npy')
+    for section in possible_sections:
+        start = time.clock()
+        df = arxiv_section_scraper(section)
+        end = time.clock()
+        csv_name = section+'_section_scraper.csv'
+        df.to_csv(csv_name)
+        print(section+' length: '+str(len(df)))
+        print(section+' scraping time: '+str(end-start))
+        
 
 
 def title_query_arxiv(queries,section='all',cite_flag=False,relev_flag=False):
