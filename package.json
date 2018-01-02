@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/charlesxjyang/charlesxjyang.github.io/issues"
   },
-  "homepage": "https://github.com/charlesxjyang/charlesxjyang.github.io#readme"
+  "homepage": "https://github.com/charlesxjyang/charlesxjyang.github.io#readme",
+  "dependencies": {
+    "express": "^4.16.2"
+  }
 }

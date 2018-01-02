@@ -16,6 +16,7 @@
         <!-- Bootstrap CSS -->
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
 
+        <script src="index.js"></script>
     </head>
         <body>
             <header>
@@ -27,34 +28,34 @@
               <h6 style="text-align: center; margin-bottom: 5%;">
                 Alexandria is a web-scraper for the CrossRef Scientific Publishing Bibliometric database that visualizes research and publication trends over time. We use the CrossRef REST API to scrape publication dates of requested topics and plot time-series of the publication count (or some other metric) over time. We hope Alexandria will become a valuable, open-source, tool for academic researchers to easily visualize trends in their fields via a simple UI interface with clear and presentable graphics.
               </h6>
-            <form>
+            <form action="submit.php" method="post">
               <div class="form-group">
                 <div class="row">
                   <div class="col">
                     <label for="firstname">First Name</label>
-                    <input type="text" class="form-control" id="firstname" placeholder="Enter first name" required>
+                    <input type="text" class="form-control" id="first" placeholder="Enter first name" name="first" required>
                   </div>
                   <div class="col">
                     <label for="lastname">Last Name</label>
-                    <input type="text" class="form-control" id="lastname" placeholder="Enter last name" required>
+                    <input type="text" class="form-control" id="last" placeholder="Enter last name" name="last" required>
                   </div>
                 </div>
               </div>
 
               <div class="form-group">
                 <label for="organization">Organization</label>
-                <input type="text" class="form-control" id="organization" placeholder="Enter organization" required>
+                <input type="text" class="form-control" id="org" placeholder="Enter organization" name="org" required>
               </div>
 
               <div class="form-group">
                 <label for="email">Email address</label>
-                <input type="email" class="form-control" id="email" aria-describedby="emailinfo" placeholder="Enter email" required>
+                <input type="email" class="form-control" id="email" aria-describedby="emailinfo" placeholder="Enter email" name="email" required>
                 <small id="emailinfo" class="form-text text-muted">We'll never share your email with anyone else.</small>
               </div>
 
               <div class="form-group">
                 <label for="query">Query</label>
-                <textarea class="form-control" id="query" rows="3" placeholder="Ex: dogs, cats, birds" required></textarea>
+                <textarea class="form-control" id="query" rows="3" placeholder="Ex: dogs, cats, birds" name=query required></textarea>
                 <small id="queryinfo" class="form-text text-muted">Separate query topics by comma.</small>
               </div>
 
