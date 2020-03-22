@@ -2,18 +2,30 @@ from helper import *
 
 ###---Arxiv---###
 
-def arxiv_section_scraper(section="physics:hep-ex"):
+def arxiv_section_scraper(section="physics:hep-ex",save_every=10**4):
     '''Scrapes all publications for title,abstract,creation date, and arxiv_id for given section'''
     from time import sleep
     import pandas as pd
     import numpy as np
     import re
     #current_date = time.strftime("%d/%m/%Y")
-    date_sections = [['1991-01-01','2000-12-31'],['2001-01-01','2005-12-31'],
-                     ['2006-01-01','2010-12-31'],['2011-01-01','2013-12-31'],
-                     ['2014-01-01','2016-12-31'],['2017-01-01','2017-12-31']]
+    #date_sections = [['1991-01-01','2000-12-31'],['2001-01-01','2005-12-31'],
+    #                 ['2006-01-01','2010-12-31'],['2011-01-01','2013-12-31'],
+    #                 ['2014-01-01','2016-12-31'],['2017-01-01','2017-12-31'],
+    #                 ['2018-01-01','2018-12-31'],['2019-01-01','2019-12-31'],
+    #                 ['2020-01-01','2020-03-20']]
+    def year_to_str_range(a:int):
+        str_a = str(a)
+        if a<90:
+            if len(str_a)==1:
+                str_a = '0'+str_a
+            return ['20' + str_a+'-01-01','20'+str_a+'-12-31']
+        if a>=90:
+            return ['19'+str_a+'-01-01','19'+str_a+'-12-31']
+    date_sections = [year_to_str_range(a) for a in range(6,21)]
     possible_sections = np.load('Arxiv_sections.npy')
     assert section in list(possible_sections),'Invalid section name'
+    query_count = 1
     def article_param_scraper(query,params=['title','abstract','created','id','doi']):
         import numpy as np
         start_sep = '<record>'
@@ -79,6 +91,9 @@ def arxiv_section_scraper(section="physics:hep-ex"):
                         'arxiv_id': arxiv_id,
                         }
             df = df.append(pd.DataFrame(contents), ignore_index=True)
+            if len(df)>query_count:
+                query_count+=save_every
+                df.to_csv("tmp")
             next_token = param_scraper(query,'resumptionToken')
             print(next_token)
             if next_token=='':
@@ -165,3 +180,8 @@ def title_query_arxiv(queries,section='all',cite_flag=False,relev_flag=False):
         df.index.name='dates'
         query_results.append(df)
     return query_results,total_results
+
+section = 'physics'
+df,count = arxiv_section_scraper(section)
+print(count)
+df.to_pickle(section+'.pkl')

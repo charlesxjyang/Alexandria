@@ -71,8 +71,9 @@ def title_query_crossref(queries,cite_flag=False,relev_flag=False):
 
     for title in queries:
     #crossref uses deep page cursoring where each cursor points to the next page of results
-        header = 'https://api.crossref.org/works?query.title='+title+'&rows=1000&cursor=*'
+        header = 'https://api.crossref.org/works?query.bibliographic='+title+'&rows=1000&cursor=*'
         current_json = json.loads(requester(header).text)
+        print(current_json)
         total_requests = current_json['message']['total-results'] #probably can have some way to back calculate length of time needed to query to tell user how long to wait
         total_dates=[]
         total_weights=[]
@@ -81,7 +82,7 @@ def title_query_crossref(queries,cite_flag=False,relev_flag=False):
             dates,weights = query_crossref(current_json)
             total_dates.extend(dates)
             total_weights.extend(weights)
-            next_header = 'https://api.crossref.org/works?query.title='+title+'&rows=1000&mailto=charlesxjyang@berkeley.edu&cursor='+quote_plus(current_json['message']['next-cursor'])
+            next_header = 'https://api.crossref.org/works?query.bibliographic='+title+'&rows=1000&mailto=charlesxjyang@berkeley.edu&cursor='+quote_plus(current_json['message']['next-cursor'])
             print(next_header)
             sleep(0.75)
             current_json = json.loads(requester(next_header).text)
